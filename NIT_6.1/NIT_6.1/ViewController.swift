@@ -7,9 +7,20 @@
 
 import UIKit
 
+
+struct Image {
+    var url: String
+    var image: UIImage?
+
+    init(url: String) {
+        self.url = url
+    }
+}
+
+
 class ViewController: UIViewController {
-    
-    var images = Array(repeating: Image(url: "https://picsum.photos/200"), count: 3)
+
+    var images = Array(repeating: Image(url: "https://picsum.photos/120"), count: 30)
     
     @IBOutlet weak var collectionView: UICollectionView!
     
@@ -23,28 +34,40 @@ class ViewController: UIViewController {
 
     @IBAction func loadPhotosButton(_ sender: Any) {
         for index in 0..<images.count {
-            let cell = collectionView.dequeueReusableCell(withReuseIdentifier: "MainCollectionViewCell", for: IndexPath(index: index)) as! CustomCollectionViewCell
-            cell.setImage(imageModel: self.images[index]) { [weak self] image in
-                self?.images[index].image = image
+            DispatchQueue.global().async { [self] in
+                images[index].image = loadImage(imageModel: images[index]).image
+                
+                let indexPath = IndexPath(item: index, section: 0)
+                DispatchQueue.main.async {
+                    collectionView.reloadItems(at: [indexPath])
+                }
             }
-            self.collectionView.reloadData()
         }
+    }
+    
+    func loadImage(imageModel: Image) -> Image{
+        var preparedImage = Image(url: imageModel.url)
+        
+        guard let imageURL = URL(string: imageModel.url) else { return preparedImage }
+        let imageData = try? Data(contentsOf: imageURL)
+        let image = UIImage(data: imageData!)
+        
+        preparedImage.image = image
+        return preparedImage
     }
     
 }
 
 extension ViewController: UICollectionViewDataSource {
     func collectionView(_ collectionView: UICollectionView, numberOfItemsInSection section: Int) -> Int {
-        3
+        images.count
     }
     
     func collectionView(_ collectionView: UICollectionView, cellForItemAt indexPath: IndexPath) -> UICollectionViewCell {
         let cell = collectionView.dequeueReusableCell(withReuseIdentifier: "MainCollectionViewCell", for: indexPath) as! CustomCollectionViewCell
         cell.backgroundColor = UIColor(red: 0.3, green: 0.7, blue: 0.7, alpha: 1)
-
-//        cell.setImage(imageModel: self.images[indexPath.item]) { [weak self] image in
-//            self?.images[indexPath.item].image = image
-//        }
+        cell.imageView.image = images[indexPath.item].image
+        
         return cell
     }
 }
@@ -66,11 +89,10 @@ extension ViewController: UICollectionViewDelegateFlowLayout {
     func collectionView(_ collectionView: UICollectionView, didSelectItemAt indexPath: IndexPath) {
         let storyboard = UIStoryboard(name: "Main", bundle: nil)
         let controller = storyboard.instantiateViewController(identifier: "PhotoViewController") as! PhotoViewController
-//        let cell = collectionView.dequeueReusableCell(withReuseIdentifier: "MainCollectionViewCell", for: indexPath) as! CustomCollectionViewCell
-//        let image = cell.imageView.image
-//        controller.photoImageView.image = self.images[indexPath.item].image
-        
+        if images[indexPath.item].image != nil {
+            controller.image = images[indexPath.item].image!
+            controller.labelAlpha = 0
+        }
         present(controller, animated: true)
     }
-    
 }
